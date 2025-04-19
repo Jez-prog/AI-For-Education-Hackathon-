@@ -5,7 +5,7 @@ from langchain_community.llms import Ollama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-
+############
 engine = pyttsx3.init()
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[1].id)  # Use first available voice
@@ -15,6 +15,8 @@ def speak(text):
     print(f"Aivy: {text}")
     engine.say(text)
     engine.runAndWait()
+########################## eto here the code for speech tts
+
 
 #SECTION 1
 # Safety Checks (Banned Words)
@@ -82,9 +84,9 @@ while True:
         
         if any(word in response.lower() for word in BANNED_WORDS):
             response = "Oh it seems I cannot answer that. How about something else?"
-            
+  #####################   
         speak(response)  # This makes Aivy speak the response
-        
+  ################### HERE ON HOW TO MAKE THE AI RESPONSE TO SPEECH      
     except Exception as e:
         error_msg = "Oh no! My robot brain glitched. Let's try a different question!"
         print("Aivy:", error_msg)
