@@ -1,11 +1,13 @@
 import os
 import re
+import time
 import pyttsx3
 from langchain_community.llms import Ollama
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from gtts import gTTS
+import playsound
 
-############
 engine = pyttsx3.init()
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[1].id)  # Use first available voice
@@ -15,8 +17,6 @@ def speak(text):
     print(f"Aivy: {text}")
     engine.say(text)
     engine.runAndWait()
-########################## eto here the code for speech tts
-
 
 #SECTION 1
 # Safety Checks (Banned Words)
@@ -57,13 +57,26 @@ while True:
     user_input = input("You: ")
 
     BREAK_WORDS = ["bye", "goodbye", "see you", "exit", "quit"]
+    TIME_QUESTIONS = [
+        "when was", "when is", "when did", "what time", "what year", 
+        "birthday", "born on", "date of", "how old", "age",
+        "century", "decade", "calendar", "anniversary", "schedule",
+        "timeline", "era", "period", "epoch"
+    ]
 
     def break_check(input_text):
         input_lower = input_text.lower()
         for word in BREAK_WORDS:
             if word in input_lower:
                 return False, "Bye bye friend! Come play again soon!"
-        return True, ""  # THIS IS THE CRITICAL FIX - ADD THIS LINE
+        return True, ""  
+    
+    def time_check(input_text):
+        input_lower = input_text.lower()
+        for phrase in TIME_QUESTIONS:
+            if phrase in input_lower:
+                return False, "I'm not good with dates and times! Let's talk about something fun instead!"
+        return True, ""
 
     # Rest of your SECTION 3 code remains exactly the same...
     # Safety check
@@ -78,15 +91,20 @@ while True:
         speak(break_message)
         break
 
+    is_time, time_message = time_check(user_input)
+    if not is_time:
+        speak(time_message)
+        continue
+
     # response of aivy
     try:
         response = chatbot.invoke({"input": user_input})
         
         if any(word in response.lower() for word in BANNED_WORDS):
             response = "Oh it seems I cannot answer that. How about something else?"
-  #####################   
+            
         speak(response)  # This makes Aivy speak the response
-  ################### HERE ON HOW TO MAKE THE AI RESPONSE TO SPEECH      
+        
     except Exception as e:
         error_msg = "Oh no! My robot brain glitched. Let's try a different question!"
         print("Aivy:", error_msg)
