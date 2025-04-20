@@ -187,86 +187,39 @@ def main():
                 # Get handedness label ("Left" or "Right")
                 hand_label = handedness.classification[0].label
 
-                # Get coordinates of the wrist to place the text
-                coords = tuple(np.multiply(
-                    [hand_landmarks.landmark[mp_hands.HandLandmark.WRIST].x,
-                     hand_landmarks.landmark[mp_hands.HandLandmark.WRIST].y],
-                    [image.shape[1], image.shape[0]]
-                ).astype(int))
+                # Get wrist position for text placement
+                wrist = hand_landmarks.landmark[mp_hands.HandLandmark.WRIST]
+                text_x = int(wrist.x * image.shape[1])
+                text_y = int(wrist.y * image.shape[0]) - 50  # Higher above the hand
 
-                # Set different colors for Left and Right
-                color = (255, 0, 0) if hand_label == "Left" else (0, 255, 0)
+                # Set colors and styles
+                if hand_label == "Left":
+                    color = (255, 100, 100)  # Light red
+                    bg_color = (50, 50, 200)  # Dark blue background
+                else:
+                    color = (100, 255, 100)  # Light green
+                    bg_color = (200, 50, 50)  # Dark red background
 
-                # Put the label text on the video frame
-                cv.putText(image, hand_label, coords, cv.FONT_HERSHEY_SIMPLEX,
-                            1, color, 2, cv.LINE_AA)
-
-                # Extract handedness label (Left or Right)
-                hand_label = handedness.classification[0].label
-
-                # (Optional) Get predicted gesture name from your classifier
-                # gesture_name = "Stop"  # Replace with your actual classification output
-                gesture_name = gesture_classifier(landmarks_to_np_array(hand_landmarks))
-
-                # Combine label
-                label_text = f"{hand_label}:{gesture_name}"
-
-                # Get coordinates to place label text (using wrist position)
-                image_height, image_width = image.shape[:2]
-                wrist = hand_landmarks.landmark[0]
-                text_x = int(wrist.x * image_width)
-                text_y = int(wrist.y * image_height) - 30
-
-                # Draw background rectangle for text
+                # Text settings
                 font = cv.FONT_HERSHEY_SIMPLEX
-                font_scale = 1
-                thickness = 2
-
-                # Get text size
-                (text_w, text_h), _ = cv.getTextSize(label_text, font, font_scale, thickness)
-
-                # Coordinates for background box
-                box_coords = (
-                    (text_x - 10, text_y - text_h - 10),
-                    (text_x + text_w + 10, text_y + 10)
-                )
-
-                # Optional: Define color per gesture
-                gesture_colors = {
-                    "Stop": (0, 0, 255),  # Red
-                    "Peace": (0, 255, 0),  # Green
-                    "ThumbsUp": (255, 255, 0),  # Cyan
-                    "Fist": (255, 0, 0),  # Blue
-                }
-                color = gesture_colors.get(label_text, (255, 255, 255))  # Default white
-
-                # Draw shadow for text (black offset behind)
-                cv.putText(image, label_text, (text_x + 2, text_y + 2), font, font_scale, (0, 0, 0), thickness + 2,
-                           cv.LINE_AA)
+                font_scale = 1.5  # Bigger text
+                thickness = 3
+                text_size = cv.getTextSize(hand_label, font, font_scale, thickness)[0]
 
                 # Draw background rectangle
-                cv.rectangle(image, box_coords[0], box_coords[1], (0, 0, 0), -1)
+                padding = 20
+                cv.rectangle(image,
+                             (text_x - padding // 2, text_y - text_size[1] - padding // 2),
+                             (text_x + text_size[0] + padding // 2, text_y + padding // 2),
+                             bg_color, -1)
 
-                # Draw final text with colored border
-                cv.putText(image, label_text, (text_x, text_y), font, font_scale, color, thickness, cv.LINE_AA)
+                # Draw outline text (for better visibility)
+                cv.putText(image, hand_label, (text_x, text_y), font,
+                           font_scale, (0, 0, 0), thickness + 2, cv.LINE_AA)
 
-                # Draw outer stroke (white text border)
-                cv.putText(
-                    image, label_text,
-                    (text_x, text_y),
-                    cv.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (255, 255, 255), 3, cv.LINE_AA
-                )
-
-                # Draw inner colored text
-                cv.putText(
-                    image, label_text,
-                    (text_x, text_y),
-                    cv.FONT_HERSHEY_SIMPLEX,
-                    1,
-                    (0, 140, 255), 1, cv.LINE_AA  # Orange
-                )
+                # Draw main text
+                cv.putText(image, hand_label, (text_x, text_y), font,
+                           font_scale, color, thickness, cv.LINE_AA)
 
         #  ####################################################################
         if results.multi_hand_landmarks is not None:
@@ -307,7 +260,7 @@ def main():
 
                 # Drawing part
                 debug_image = draw_bounding_rect(use_brect, debug_image, brect)
-            #    debug_image = draw_landmarks(debug_image, landmark_list)
+                debug_image = draw_landmarks(debug_image, landmark_list)  # <-- Now uncommented
                 debug_image = draw_info_text(
                     debug_image,
                     brect,
@@ -443,101 +396,68 @@ def logging_csv(number, mode, landmark_list, point_history_list):
 
 def draw_landmarks(image, landmark_point):
     if len(landmark_point) > 0:
-        # Thumb
-        cv.line(image, tuple(landmark_point[2]), tuple(landmark_point[3]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[2]), tuple(landmark_point[3]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[3]), tuple(landmark_point[4]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[3]), tuple(landmark_point[4]),
-                (255, 255, 255), 2)
+        # Custom colors
+        palm_color = (255, 178, 102)  # Light orange
+        thumb_color = (255, 102, 102)  # Coral
+        index_color = (102, 255, 178)  # Mint
+        middle_color = (102, 178, 255)  # Sky blue
+        ring_color = (178, 102, 255)  # Lavender
+        pinky_color = (255, 102, 178)  # Pink
+        joint_color = (255, 255, 255)  # White
+        tip_color = (255, 255, 0)  # Yellow
 
-        # Index finger
-        cv.line(image, tuple(landmark_point[5]), tuple(landmark_point[6]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[5]), tuple(landmark_point[6]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[6]), tuple(landmark_point[7]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[6]), tuple(landmark_point[7]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[7]), tuple(landmark_point[8]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[7]), tuple(landmark_point[8]),
-                (255, 255, 255), 2)
+        # Palm connections (more organic shape)
+        palm_connections = [
+            (0, 1), (1, 2), (2, 5), (5, 9), (9, 13), (13, 17), (17, 0),
+            (0, 5), (5, 17)
+        ]
 
-        # Middle finger
-        cv.line(image, tuple(landmark_point[9]), tuple(landmark_point[10]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[9]), tuple(landmark_point[10]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[10]), tuple(landmark_point[11]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[10]), tuple(landmark_point[11]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[11]), tuple(landmark_point[12]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[11]), tuple(landmark_point[12]),
-                (255, 255, 255), 2)
+        for connection in palm_connections:
+            cv.line(image, tuple(landmark_point[connection[0]]), tuple(landmark_point[connection[1]]),
+                    palm_color, 4)
 
-        # Ring finger
-        cv.line(image, tuple(landmark_point[13]), tuple(landmark_point[14]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[13]), tuple(landmark_point[14]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[14]), tuple(landmark_point[15]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[14]), tuple(landmark_point[15]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[15]), tuple(landmark_point[16]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[15]), tuple(landmark_point[16]),
-                (255, 255, 255), 2)
+        # Finger connections with different colors
+        finger_connections = [
+            (thumb_color, [(2, 3), (3, 4)]),
+            (index_color, [(5, 6), (6, 7), (7, 8)]),
+            (middle_color, [(9, 10), (10, 11), (11, 12)]),
+            (ring_color, [(13, 14), (14, 15), (15, 16)]),
+            (pinky_color, [(17, 18), (18, 19), (19, 20)])
+        ]
 
-        # Little finger
-        cv.line(image, tuple(landmark_point[17]), tuple(landmark_point[18]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[17]), tuple(landmark_point[18]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[18]), tuple(landmark_point[19]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[18]), tuple(landmark_point[19]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[19]), tuple(landmark_point[20]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[19]), tuple(landmark_point[20]),
-                (255, 255, 255), 2)
+        for color, connections in finger_connections:
+            for connection in connections:
+                cv.line(image, tuple(landmark_point[connection[0]]), tuple(landmark_point[connection[1]]),
+                        color, 3)
 
-        # Palm
-        cv.line(image, tuple(landmark_point[0]), tuple(landmark_point[1]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[0]), tuple(landmark_point[1]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[1]), tuple(landmark_point[2]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[1]), tuple(landmark_point[2]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[2]), tuple(landmark_point[5]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[2]), tuple(landmark_point[5]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[5]), tuple(landmark_point[9]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[5]), tuple(landmark_point[9]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[9]), tuple(landmark_point[13]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[9]), tuple(landmark_point[13]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[13]), tuple(landmark_point[17]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[13]), tuple(landmark_point[17]),
-                (255, 255, 255), 2)
-        cv.line(image, tuple(landmark_point[17]), tuple(landmark_point[0]),
-                (0, 0, 0), 6)
-        cv.line(image, tuple(landmark_point[17]), tuple(landmark_point[0]),
-                (255, 255, 255), 2)
+        # Draw joints with different styles
+        for index, landmark in enumerate(landmark_point):
+            radius = 5
+            color = joint_color
+            thickness = -1  # Filled
+
+            if index in [4, 8, 12, 16, 20]:  # Finger tips
+                radius = 8
+                color = tip_color
+                # Draw glow effect
+                cv.circle(image, (landmark[0], landmark[1]), radius + 2,
+                          (color[0] // 2, color[1] // 2, color[2] // 2), -1)
+
+            cv.circle(image, (landmark[0], landmark[1]), radius, color, thickness)
+
+            # Add subtle outline
+            cv.circle(image, (landmark[0], landmark[1]), radius + 1,
+                      (color[0] // 3, color[1] // 3, color[2] // 3), 1)
+
+        # Add subtle glow to the entire hand
+        overlay = image.copy()
+        alpha = 0.3
+        for connection in palm_connections + [c for _, cs in finger_connections for c in cs]:
+            cv.line(overlay, tuple(landmark_point[connection[0]]), tuple(landmark_point[connection[1]]),
+                    (255, 255, 255), 8)
+        image = cv.addWeighted(overlay, alpha, image, 1 - alpha, 0)
+
+    return image
 
     # Key Points
     for index, landmark in enumerate(landmark_point):
